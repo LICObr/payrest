@@ -89,6 +89,35 @@ func (s *ChargeService) Decline(chargeID string) (*domain.Charge, error) {
 }
 
 // --------------------------------------------------
+// Refund
+// --------------------------------------------------
+
+func (s *ChargeService) Refund(chargeID string) (*domain.Charge, error) {
+	charge, err := s.charges.FindByID(chargeID)
+	if err != nil {
+		return nil, err
+	}
+	if !charge.CanRefund() {
+		return nil, domain.ErrInvalidChargeState
+	}
+
+	account, err := s.accounts.FindByID(charge.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	account.Credit(charge.AmountCents)
+
+	charge.MarkRefunded()
+	if err := s.accounts.Save(account); err != nil {
+		return nil, err
+	}
+	if err := s.charges.Save(charge); err != nil {
+		return nil, err
+	}
+	return charge, nil
+}
+
+// --------------------------------------------------
 // GetCharge
 // --------------------------------------------------
 
