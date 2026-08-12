@@ -40,6 +40,12 @@ pending ──approve──> approved ──refund──> refunded
 - **Decline** just closes the charge, no balance movement.
 - **Refund** only works on an approved charge and credits the balance back.
 
+State transitions are serialized with a mutex in `ChargeService` — without
+it, two concurrent requests approving the same charge could both pass the
+"is it still pending" check and double-debit the account. This is covered
+by a concurrency test (`TestApprove_ConcurrentCallsOnlyDebitOnce`) run with
+Go's race detector.
+
 ## Running locally
 
 ```bash
@@ -50,15 +56,17 @@ The server starts on `:8080` (override with the `PORT` env var).
 
 ## API
 
-| Method | Path                      | Description              |
-|--------|---------------------------|---------------------------|
-| POST   | `/accounts`                | Create an account         |
-| GET    | `/accounts/{id}`           | Get an account             |
-| POST   | `/charges`                  | Create a charge (pending)  |
-| GET    | `/charges/{id}`             | Get a charge                |
-| POST   | `/charges/{id}/approve`     | Approve a pending charge    |
-| POST   | `/charges/{id}/decline`     | Decline a pending charge    |
-| POST   | `/charges/{id}/refund`      | Refund an approved charge   |
+| Method | Path                      | Description                 |
+|--------|---------------------------|------------------------------|
+| GET    | `/health`                 | Health check                 |
+| POST   | `/accounts`               | Create an account             |
+| GET    | `/accounts/{id}`          | Get an account                 |
+| GET    | `/accounts/{id}/charges`  | List charges for an account     |
+| POST   | `/charges`                | Create a charge (pending)        |
+| GET    | `/charges/{id}`           | Get a charge                      |
+| POST   | `/charges/{id}/approve`   | Approve a pending charge           |
+| POST   | `/charges/{id}/decline`   | Decline a pending charge            |
+| POST   | `/charges/{id}/refund`    | Refund an approved charge            |
 
 ### Example
 
@@ -75,11 +83,12 @@ curl -X POST localhost:8080/charges/<charge-id>/approve
 ## Tests
 
 ```bash
-go test ./...
+go test ./... -race
 ```
 
-Unit tests cover the service layer (state transitions, balance rules) and
-integration tests exercise the HTTP handlers end to end with `httptest`.
+Unit tests cover the service layer (state transitions, balance rules,
+concurrency) and integration tests exercise the HTTP handlers end to end
+with `httptest`.
 
 ## Tech stack
 
