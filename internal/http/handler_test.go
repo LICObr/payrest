@@ -42,6 +42,22 @@ func postJSON(router http.Handler, method, path string, body any) *httptest.Resp
 }
 
 // --------------------------------------------------
+// TestHealth_ReturnsOK
+// --------------------------------------------------
+
+func TestHealth_ReturnsOK(t *testing.T) {
+	router := newTestRouter()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+}
+
+// --------------------------------------------------
 // TestCreateAccount_ReturnsCreated
 // --------------------------------------------------
 
