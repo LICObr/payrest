@@ -1,6 +1,8 @@
 package service_test
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/LICObr/payrest/internal/domain"
@@ -138,5 +140,39 @@ func TestRefund_PendingChargeCannotBeRefunded(t *testing.T) {
 	_, err := charges.Refund(charge.ID)
 	if err != domain.ErrInvalidChargeState {
 		t.Errorf("expected ErrInvalidChargeState, got %v", err)
+	}
+}
+
+// --------------------------------------------------
+// TestApprove_ConcurrentCallsOnlyDebitOnce
+// --------------------------------------------------
+
+func TestApprove_ConcurrentCallsOnlyDebitOnce(t *testing.T) {
+	accounts, charges := newGatewayForTest()
+	account, _ := accounts.CreateAccount("Danilo", 10_000)
+	charge, _ := charges.CreateCharge(account.ID, 3_000)
+
+	const attempts = 20
+	var successCount int64
+	var wg sync.WaitGroup
+
+	for i := 0; i < attempts; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := charges.Approve(charge.ID); err == nil {
+				atomic.AddInt64(&successCount, 1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if successCount != 1 {
+		t.Errorf("expected exactly 1 successful approve out of %d concurrent attempts, got %d", attempts, successCount)
+	}
+
+	updatedAccount, _ := accounts.GetAccount(account.ID)
+	if updatedAccount.BalanceCents != 7_000 {
+		t.Errorf("expected balance debited exactly once (7000), got %d", updatedAccount.BalanceCents)
 	}
 }

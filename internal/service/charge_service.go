@@ -1,12 +1,23 @@
 package service
 
-import "github.com/LICObr/payrest/internal/domain"
+import (
+	"sync"
+
+	"github.com/LICObr/payrest/internal/domain"
+)
 
 // ChargeService handles the payment gateway use cases: creating a charge
 // and moving it through its state machine (pending -> approved|declined -> refunded).
+//
+// State transitions (Approve/Decline/Refund) read a charge, decide whether
+// the transition is valid, then write the result back in separate steps.
+// Without a lock, two concurrent requests for the same charge could both
+// pass the validity check before either writes — e.g. double-debiting an
+// account on a double approve. mu serializes those transitions.
 type ChargeService struct {
 	charges  domain.ChargeRepository
 	accounts domain.AccountRepository
+	mu       sync.Mutex
 }
 
 // --------------------------------------------------
@@ -42,6 +53,9 @@ func (s *ChargeService) CreateCharge(accountID string, amountCents int64) (*doma
 // --------------------------------------------------
 
 func (s *ChargeService) Approve(chargeID string) (*domain.Charge, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	charge, err := s.charges.FindByID(chargeID)
 	if err != nil {
 		return nil, err
@@ -73,6 +87,9 @@ func (s *ChargeService) Approve(chargeID string) (*domain.Charge, error) {
 // --------------------------------------------------
 
 func (s *ChargeService) Decline(chargeID string) (*domain.Charge, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	charge, err := s.charges.FindByID(chargeID)
 	if err != nil {
 		return nil, err
@@ -93,6 +110,9 @@ func (s *ChargeService) Decline(chargeID string) (*domain.Charge, error) {
 // --------------------------------------------------
 
 func (s *ChargeService) Refund(chargeID string) (*domain.Charge, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	charge, err := s.charges.FindByID(chargeID)
 	if err != nil {
 		return nil, err
