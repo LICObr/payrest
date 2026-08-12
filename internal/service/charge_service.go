@@ -38,6 +38,57 @@ func (s *ChargeService) CreateCharge(accountID string, amountCents int64) (*doma
 }
 
 // --------------------------------------------------
+// Approve
+// --------------------------------------------------
+
+func (s *ChargeService) Approve(chargeID string) (*domain.Charge, error) {
+	charge, err := s.charges.FindByID(chargeID)
+	if err != nil {
+		return nil, err
+	}
+	if !charge.CanApprove() {
+		return nil, domain.ErrInvalidChargeState
+	}
+
+	account, err := s.accounts.FindByID(charge.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	if err := account.Debit(charge.AmountCents); err != nil {
+		return nil, err
+	}
+
+	charge.MarkApproved()
+	if err := s.accounts.Save(account); err != nil {
+		return nil, err
+	}
+	if err := s.charges.Save(charge); err != nil {
+		return nil, err
+	}
+	return charge, nil
+}
+
+// --------------------------------------------------
+// Decline
+// --------------------------------------------------
+
+func (s *ChargeService) Decline(chargeID string) (*domain.Charge, error) {
+	charge, err := s.charges.FindByID(chargeID)
+	if err != nil {
+		return nil, err
+	}
+	if !charge.CanDecline() {
+		return nil, domain.ErrInvalidChargeState
+	}
+
+	charge.MarkDeclined()
+	if err := s.charges.Save(charge); err != nil {
+		return nil, err
+	}
+	return charge, nil
+}
+
+// --------------------------------------------------
 // GetCharge
 // --------------------------------------------------
 
