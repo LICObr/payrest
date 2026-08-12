@@ -120,3 +120,37 @@ func TestChargeLifecycle_CreateApproveRefund(t *testing.T) {
 		t.Errorf("expected status refunded, got %s", refunded.Status)
 	}
 }
+
+// --------------------------------------------------
+// TestListChargesByAccount_ReturnsOnlyThatAccountsCharges
+// --------------------------------------------------
+
+func TestListChargesByAccount_ReturnsOnlyThatAccountsCharges(t *testing.T) {
+	router := newTestRouter()
+
+	accountARec := postJSON(router, http.MethodPost, "/accounts", payresthttp.CreateAccountRequest{Name: "A", InitialBalanceCents: 10_000})
+	var accountA payresthttp.AccountResponse
+	_ = json.Unmarshal(accountARec.Body.Bytes(), &accountA)
+
+	accountBRec := postJSON(router, http.MethodPost, "/accounts", payresthttp.CreateAccountRequest{Name: "B", InitialBalanceCents: 10_000})
+	var accountB payresthttp.AccountResponse
+	_ = json.Unmarshal(accountBRec.Body.Bytes(), &accountB)
+
+	postJSON(router, http.MethodPost, "/charges", payresthttp.CreateChargeRequest{AccountID: accountA.ID, AmountCents: 1_000})
+	postJSON(router, http.MethodPost, "/charges", payresthttp.CreateChargeRequest{AccountID: accountA.ID, AmountCents: 2_000})
+	postJSON(router, http.MethodPost, "/charges", payresthttp.CreateChargeRequest{AccountID: accountB.ID, AmountCents: 5_000})
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountA.ID+"/charges", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var charges []payresthttp.ChargeResponse
+	_ = json.Unmarshal(rec.Body.Bytes(), &charges)
+	if len(charges) != 2 {
+		t.Errorf("expected 2 charges for account A, got %d", len(charges))
+	}
+}

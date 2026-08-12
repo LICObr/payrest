@@ -11,6 +11,7 @@ func NewRouter(accounts *AccountHandler, charges *ChargeHandler) *http.ServeMux 
 
 	mux.HandleFunc("POST /accounts", accounts.Create)
 	mux.HandleFunc("GET /accounts/{id}", accounts.Get)
+	mux.HandleFunc("GET /accounts/{id}/charges", charges.ListByAccount)
 
 	mux.HandleFunc("POST /charges", charges.Create)
 	mux.HandleFunc("GET /charges/{id}", charges.Get)

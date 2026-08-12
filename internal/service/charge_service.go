@@ -144,3 +144,11 @@ func (s *ChargeService) Refund(chargeID string) (*domain.Charge, error) {
 func (s *ChargeService) GetCharge(chargeID string) (*domain.Charge, error) {
 	return s.charges.FindByID(chargeID)
 }
+
+// --------------------------------------------------
+// ListByAccount
+// --------------------------------------------------
+
+func (s *ChargeService) ListByAccount(accountID string) ([]*domain.Charge, error) {
+	return s.charges.FindByAccountID(accountID)
+}

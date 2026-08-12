@@ -53,3 +53,15 @@ func toChargeResponse(charge *domain.Charge) ChargeResponse {
 		Status:      string(charge.Status),
 	}
 }
+
+// --------------------------------------------------
+// toChargeResponses
+// --------------------------------------------------
+
+func toChargeResponses(charges []*domain.Charge) []ChargeResponse {
+	responses := make([]ChargeResponse, len(charges))
+	for i, charge := range charges {
+		responses[i] = toChargeResponse(charge)
+	}
+	return responses
+}
