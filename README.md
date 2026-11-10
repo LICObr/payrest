@@ -1,5 +1,7 @@
 # PayRest
 
+[![CI](https://github.com/LICObr/payrest/actions/workflows/ci.yml/badge.svg)](https://github.com/LICObr/payrest/actions/workflows/ci.yml)
+
 A simulated payment gateway REST API written in Go. It models the core
 lifecycle of a payment: create a charge, approve or decline it, and refund
 it later — with real balance movement between accounts.
